@@ -59,7 +59,9 @@ const demoQuestions=[
  {topic:'Maths • Demo',text:'What is 3/4 + 1/4?',options:['1/2','1','4/8','2'],answer:1,explain:'3/4 + 1/4 = 4/4 = 1.'},
  {topic:'Science • Demo',text:'Which gas do plants mainly absorb during photosynthesis?',options:['Oxygen','Nitrogen','Carbon dioxide','Hydrogen'],answer:2,explain:'Plants absorb carbon dioxide and use light energy during photosynthesis.'},
  {topic:'General Knowledge • Demo',text:'Which is the largest planet in our solar system?',options:['Earth','Mars','Jupiter','Venus'],answer:2,explain:'Jupiter is the largest planet in our solar system.'}
-];let qi=0,answers=[],started=false,seconds=0,timerInterval=null,answered=false;
+];
+let questions = demoQuestions;
+let qi = 0, answers = [], started = false, seconds = 0, timerInterval = null, answered = false;
 function timerStart(){clearInterval(timerInterval);seconds=0;renderTimer();timerInterval=setInterval(()=>{seconds++;renderTimer()},1000)}function renderTimer(){$('timer').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')}
 function renderQuestion(){const q=questions[qi];answered=false;$('qIndex').textContent=qi+1;$('qTotal').textContent=questions.length;$('qTopic').textContent=q.topic;$('questionText').textContent=q.text;$('options').innerHTML='';q.options.forEach((op,i)=>{const label=document.createElement('label');label.className='option';const radio=document.createElement('input');radio.type='radio';radio.name='answer';radio.value=i;label.append(radio,document.createTextNode(op));$('options').append(label)});$('feedback').className='feedback hidden';$('feedback').textContent='';$('checkBtn').classList.remove('hidden');$('nextBtn').classList.add('hidden');$('questionCard').classList.remove('hidden');$('resultCard').classList.add('hidden')}
 function startSet(){const imported=(data.customQuestions||[]);questions=imported.length?imported:demoQuestions;qi=0;answers=[];started=true;$('resultCard').classList.add('hidden');timerStart();renderQuestion()}
