@@ -83,7 +83,34 @@ async function loadPdfJs(){if(window.pdfjsLib)return window.pdfjsLib;await new P
 $('extractPdf').addEventListener('click',async()=>{const f=$('pdfImport').files&&$('pdfImport').files[0];if(!f){$('pdfStatus').textContent='Please select a PDF or TXT file first.';return}const btn=$('extractPdf');btn.disabled=true;$('pdfStatus').textContent='Reading file…';try{let text='';if(/\.txt$/i.test(f.name)||f.type==='text/plain'){text=await f.text()}else if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){const lib=await loadPdfJs();const bytes=new Uint8Array(await f.arrayBuffer());const pdf=await lib.getDocument({data:bytes}).promise;for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n);const content=await page.getTextContent();text+=content.items.map(x=>x.str).join(' ')+'\n';$('pdfStatus').textContent=`Extracting PDF text: page ${n}/${pdf.numPages}`}}else throw Error('Choose a PDF or TXT file.');$('pdfText').value=text.trim();$('pdfStatus').textContent=text.trim()?'Text extracted. Review it, then tap Find MCQs. If this is a scanned PDF, use OCR & Check to extract its pages as images.':'No selectable text found. This may be a scanned/image-only PDF; use OCR on page images.'}catch(e){$('pdfStatus').textContent='Import failed: '+e.message}finally{btn.disabled=false}});
 function parseImported(text){const blocks=(text||'').replace(/\r/g,'').split(/(?=^\s*(?:Q(?:uestion)?\s*)?\d+[.)]\s+)/m).map(x=>x.trim()).filter(Boolean);const out=[];for(const b of blocks){const head=b.match(/^(?:Q(?:uestion)?\s*)?\d+[.)]\s*([\s\S]+)/i);if(!head)continue;const body=head[1];const optRe=/(?:^|\s)([A-D])[).]\s*([\s\S]*?)(?=\s+[A-D][).]\s*|\s+(?:Answer|Ans|Correct answer)\s*[:.-]|$)/gi;let opts=[],m;while((m=optRe.exec(body))!==null){const val=m[2].trim().replace(/\s+/g,' ');if(val)opts.push({letter:m[1].toUpperCase(),text:val})}if(opts.length<2)continue;const ans=body.match(/(?:Answer|Ans|Correct answer)\s*[:.-]?\s*\(?([A-D])\)?/i);const qText=body.split(/(?:^|\s)A[).]\s*/i)[0].trim().replace(/\s+/g,' ');if(!qText)continue;let answer=ans?opts.findIndex(o=>o.letter===ans[1].toUpperCase()):-1;out.push({topic:'Imported PDF • '+$('subject').value,text:qText,options:opts.map(o=>o.letter+'. '+o.text),answer:answer,explain:answer>=0?'Imported answer key: '+opts[answer].letter+'. Please verify against the source PDF.':'No answer key detected. This question can be practiced, but automatic correctness checking needs an answer key.'})}return out}
 $('parseQuestions').addEventListener('click',()=>{importedParsed=parseImported($('pdfText').value);$('importedPreview').value=importedParsed.map((q,i)=>`${i+1}. ${q.text}\n${q.options.join('\n')}\nAnswer: ${q.answer>=0?String.fromCharCode(65+q.answer):'NOT FOUND'}`).join('\n\n');$('addImportedQuestions').disabled=!importedParsed.length;$('pdfStatus').textContent=importedParsed.length?`Detected ${importedParsed.length} MCQ(s). Review preview and answer keys before adding.`:'No MCQs recognized. Use numbered questions with A), B), C), D) options. You can still save PDF text as a note.'});
-$('addImportedQuestions').addEventListener('click',()=>{if(!importedParsed.length)return;data.customQuestions=[...(data.customQuestions||[]),...importedParsed];persist();$('pdfStatus').textContent=`Added ${importedParsed.length} questions. Start / Restart Set to practice your imported question bank. Questions without detected answer keys won't be auto-marked correct.`;$('addImportedQuestions').disabled=true;});
+
+$('addImportedQuestions').addEventListener('click',()=>{
+  if(!importedParsed.length)return;
+
+  const board = $('board').value;
+  const classLevel = $('classLevel').value;
+  const subject = $('subject').value;
+
+  const taggedQuestions = importedParsed.map(q=>({
+    ...q,
+    board,
+    classLevel,
+    subject
+  }));
+
+  data.customQuestions=[
+    ...(data.customQuestions||[]),
+    ...taggedQuestions
+  ];
+
+  persist();
+
+  $('pdfStatus').textContent =
+    `Added ${taggedQuestions.length} questions for ${board}, Class ${classLevel}, ${subject}.`;
+
+  $('addImportedQuestions').disabled=true;
+});
+
 // OCR and basic reference-answer comparison (OCR requires internet for CDN/language data)
 let ocrImageUrl=null;
 $('ocrImage').addEventListener('change',e=>{const file=e.target.files&&e.target.files[0];if(!file)return;if(!file.type.startsWith('image/')){alert('Please choose an image file.');return}if(ocrImageUrl)URL.revokeObjectURL(ocrImageUrl);ocrImageUrl=URL.createObjectURL(file);$('imagePreview').src=ocrImageUrl;$('imagePreviewWrap').classList.remove('hidden');$('runOcr').disabled=false;$('ocrStatus').textContent=`Selected: ${file.name} (${Math.round(file.size/1024)} KB).`});
